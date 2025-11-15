@@ -1,7 +1,6 @@
 // DETECTIVE QUEST - NÍVEL MESTRE
 // Tema 4 - Árvores Binárias, BST e Tabela Hash
 // Desenvolvido por Rebeca Vieira Maia
-// Código final com comentários para entrega
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +47,7 @@ typedef struct {
 int hash(const char *chave) {
     int soma = 0;
     for (int i = 0; chave[i] != '\0'; i++)
-        soma += (unsigned char)chave[i];
+        soma += chave[i];
     return soma % TAM_HASH;
 }
 
@@ -62,11 +61,12 @@ int hash(const char *chave) {
  * Retorna ponteiro para o novo nó.
  */
 Sala* criarSala(char *nome) {
-    Sala *nova = (Sala*)malloc(sizeof(Sala));
-    if (!nova) { perror("malloc"); exit(EXIT_FAILURE); }
-    strncpy(nova->nome, nome, sizeof(nova->nome)-1);
-    nova->nome[sizeof(nova->nome)-1] = '\0';
-    nova->esq = nova->dir = NULL;
+    Sala* nova = (Sala*)malloc(sizeof(Sala));
+
+    strcpy(nova->nome, nome);   // <-- CORRETO AGORA
+    nova->esq = NULL;
+    nova->dir = NULL;
+
     return nova;
 }
 
@@ -78,17 +78,19 @@ Sala* criarSala(char *nome) {
 Pista* inserirPista(Pista *raiz, char *pista) {
     if (raiz == NULL) {
         Pista *novo = (Pista*)malloc(sizeof(Pista));
-        if (!novo) { perror("malloc"); exit(EXIT_FAILURE); }
-        strncpy(novo->pista, pista, sizeof(novo->pista)-1);
-        novo->pista[sizeof(novo->pista)-1] = '\0';
-        novo->esq = novo->dir = NULL;
+
+        strcpy(novo->pista, pista);  // copia a string, já insere '\0'
+        novo->esq = NULL;
+        novo->dir = NULL;
+
         return novo;
     }
+
     if (strcmp(pista, raiz->pista) < 0)
         raiz->esq = inserirPista(raiz->esq, pista);
     else if (strcmp(pista, raiz->pista) > 0)
         raiz->dir = inserirPista(raiz->dir, pista);
-    // Se for igual, evita inserir duplicata (mantém apenas uma ocorrência)
+
     return raiz;
 }
 
@@ -99,12 +101,10 @@ Pista* inserirPista(Pista *raiz, char *pista) {
  */
 void inserirNaHash(HashTable *tabela, char *pista, char *suspeito) {
     int indice = hash(pista);
+
     NoHash *novo = (NoHash*)malloc(sizeof(NoHash));
-    if (!novo) { perror("malloc"); exit(EXIT_FAILURE); }
-    strncpy(novo->pista, pista, sizeof(novo->pista)-1);
-    novo->pista[sizeof(novo->pista)-1] = '\0';
-    strncpy(novo->suspeito, suspeito, sizeof(novo->suspeito)-1);
-    novo->suspeito[sizeof(novo->suspeito)-1] = '\0';
+    strcpy(novo->pista, pista);
+    strcpy(novo->suspeito, suspeito);
     novo->prox = tabela->itens[indice];
     tabela->itens[indice] = novo;
 }
@@ -151,7 +151,7 @@ void verificarSuspeitoFinal(Pista *raiz, HashTable *tabela, const char *suspeito
     // Contagem recursiva simples
     int contador = 0;
 
-    // função interna recursiva (pode ser escrita como função externa também)
+    // função interna recursiva
     // conta quantas pistas na BST apontam para 'suspeito'
     int contar(Pista *n) {
         if (n == NULL) return 0;
@@ -166,9 +166,9 @@ void verificarSuspeitoFinal(Pista *raiz, HashTable *tabela, const char *suspeito
     contador = contar(raiz);
 
     if (contador >= 2)
-        printf("\n✅ Acusação confirmada! %s é o(a) culpado(a) com base nas evidências (%d pistas).\n", suspeito, contador);
+        printf("\nAcusação confirmada! %s é o(a) culpado(a) com base nas evidências (%d pistas).\n", suspeito, contador);
     else
-        printf("\n❌ Acusação inválida. %s não tem pistas suficientes (%d pista(s)).\n", suspeito, contador);
+        printf("\nAcusação inválida. %s não tem pistas suficientes (%d pista(s)).\n", suspeito, contador);
 }
 
 // ===============================
@@ -177,7 +177,7 @@ void verificarSuspeitoFinal(Pista *raiz, HashTable *tabela, const char *suspeito
 
 /*
  * pistaPorSala()
- * Retorna a pista associada ao nome da sala (regras codificadas).
+ * Retorna a pista associada ao nome da sala.
  * Retorna NULL se a sala não tiver pista.
  */
 char* pistaPorSala(const char *nomeSala) {
@@ -244,12 +244,11 @@ int main() {
     for (int i = 0; i < TAM_HASH; i++) tabela.itens[i] = NULL;
 
     // Associações pista -> suspeito
-    // IMPORTANTE: deixe apenas um suspeito com >= 2 pistas se quiser um único culpado lógico.
-    // Aqui Sra. White terá duas pistas (culpada lógica), outros têm 1.
-    inserirNaHash(&tabela, "Luvas rasgadas", "Sr. Black");
-    inserirNaHash(&tabela, "Pegadas de lama", "Sr. Black");       // Sr. Black tem 2 (se preferir, ajuste)
+    // Aqui Sra. White terá duas pistas (culpada), outros têm 1.
+    inserirNaHash(&tabela, "Luvas rasgadas", "Bibliotecária");
+    inserirNaHash(&tabela, "Pegadas de lama", "Mordomo");      
     inserirNaHash(&tabela, "Faca suja", "Sra. White");
-    inserirNaHash(&tabela, "Bilhete ameaçador", "Sra. White");   // Sra. White tem 2 (culpada)
+    inserirNaHash(&tabela, "Bilhete ameaçador", "Sra. White");   
     inserirNaHash(&tabela, "Flor arrancada", "Jardineiro");
 
     // Exploração interativa
@@ -266,7 +265,12 @@ int main() {
 
     // Fase final: acusação
     char suspeito[50];
-    printf("\nDigite o nome do suspeito que deseja acusar (ex: Sra. White): ");
+    printf("\nDigite o nome do suspeito que deseja acusar: ");
+    printf("\nBibliotecária");
+    printf("\nMordomo");
+    printf("\nSra. White");
+    printf("\nJardineiro");
+
     scanf(" %[^\n]", suspeito);
 
     verificarSuspeitoFinal(pistasColetadas, &tabela, suspeito);
